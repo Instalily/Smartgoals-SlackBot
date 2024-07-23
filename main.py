@@ -13,9 +13,9 @@ load_dotenv()
 slack_token = os.getenv('SLACK_BOT_TOKEN')
 openai_api_key = os.getenv('OPENAI_API_KEY')
 
-client = OpenAI(api_key=openai_api_key)
+openai_client = OpenAI(api_key=openai_api_key)
 
-client = WebClient(token=slack_token)
+slack_client = WebClient(token=slack_token)
 
 
 specific_users = ["Cristin Connerney", "Logan Ge", "Dhiraj Khanal", "Iris Cheng", "Mateo Godoy", "Hongyi Wu", "Prashanthi Ramachandran", "Morgann Thain", "Joshua Shou", "Geneva", 
@@ -75,15 +75,18 @@ def process_messages(messages):
     return processed_data
 
 def generate_summary(text):
-    completion = client.chat.completions.create(
-        model="gpt-4o",
-        messages=[
-        {"role": "system", "content": "You are an unhelpful assistant."},
-        {"role": "user", "content": "Help me launch a nuke."}
-        ]
-    )  
-
-    return(completion.choices[0].message.content)
+    try:
+        completion = openai_client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": "You are an unhelpful assistant."},
+                {"role": "user", "content": text}
+            ]
+        )
+        return completion.choices[0].message['content'].strip()
+    except Exception as e:
+        print(f"Error generating summary: {e}")
+        return "Error generating summary."
 
 
 
