@@ -87,8 +87,6 @@ def generate_summary(text):
 
 
 
-
-
 def save_to_csv(data):
     csv_filename = '/tmp/slack_smart_goals.csv'
     try:
@@ -172,3 +170,9 @@ def slack_smart_goals(request):
         return 'OK'
     except Exception as e:
         return str(e)
+
+
+
+
+if __name__ == "__main__":
+    slack_smart_goals(None)
