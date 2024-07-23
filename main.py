@@ -75,11 +75,12 @@ def generate_summary(text):
         completion = openai_client.chat.completions.create(
             model="gpt-4o",
             messages=[
-                {"role": "system", "content": "You are an unhelpful assistant."},
+                {"role": "system", "content": "You are a helpful assistant, summarizing today's work completed by each person for their boss in a very short and concise way."},
                 {"role": "user", "content": text}
             ]
         )
-        return completion.choices[0].message['content'].strip()
+        print(completion)  # Print the entire response to debug
+        return completion.choices[0].message.content.strip()
     except Exception as e:
         print(f"Error generating summary: {e}")
         return "Error generating summary."
