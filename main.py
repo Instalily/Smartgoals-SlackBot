@@ -14,7 +14,6 @@ slack_token = os.getenv('SLACK_BOT_TOKEN')
 openai_api_key = os.getenv('OPENAI_API_KEY')
 
 openai_client = OpenAI(api_key=openai_api_key)
-
 slack_client = WebClient(token=slack_token)
 
 
@@ -22,9 +21,13 @@ specific_users = ["Cristin Connerney", "Logan Ge", "Dhiraj Khanal", "Iris Cheng"
                   "Sujit Varadhan", "Laryn Qi", "Edward Kim", "Sriyans Rauniyar", "Zubin Chandra", "Doris Huang", "Alex Kim", "Mars Tan", "Aris Zhu", "Brigit Jacob", "Jack Rangaiah", "Roey Abehsera"]
 
 def get_user_name(user_id):
-    result = client.users_info(user=user_id)
-    return result['user']['real_name']
-
+    try:
+        result = slack_client.users_info(user=user_id)
+        return result['user']['real_name']
+    except SlackApiError as e:
+        print(f"Error fetching user info: {e.response['error']}")
+        return None
+    
 def extract_messages(channel_id):
     try:
         end_time = datetime.now()
@@ -33,22 +36,15 @@ def extract_messages(channel_id):
         oldest_time = int(start_time.timestamp())
         latest_time = int(end_time.timestamp())
 
-        result = client.conversations_history(
+        result = slack_client.conversations_history(
             channel=channel_id,
             oldest=oldest_time,
             latest=latest_time
         )
         return result['messages']
     except SlackApiError as e:
-        if e.response['error'] == 'channel_not_found':
-            print(f"Error: Channel '{channel_id}' not found.")
-        elif e.response['error'] == 'invalid_auth':
-            print("Error: Invalid authentication token.")
-        elif e.response['error'] == 'token_revoked':
-            print("Error: Token revoked.")
-        else:
-            print(f"Error fetching messages: {e.response['error']}")
-    return []
+        print(f"Error fetching messages: {e.response['error']}")
+        return []
 
 def process_messages(messages):
     processed_data = []
@@ -87,6 +83,7 @@ def generate_summary(text):
     except Exception as e:
         print(f"Error generating summary: {e}")
         return "Error generating summary."
+
 
 
 
@@ -141,15 +138,12 @@ def send_slack_message(data):
         slack_message = f"{header_message}\n{submitted_users_message}\n{not_submitted_users_message}\n{summaries_message}"
 
         channel_id = "C07DT2TQDDJ"  # Replace with your destination channel ID C07CBL4DE30
-        response = client.chat_postMessage(channel=channel_id, text=slack_message)
+        response = slack_client.chat_postMessage(channel=channel_id, text=slack_message)
 
         if response["ok"]:
             print(f"Data sent to channel {channel_id} on Slack.")
         else:
-            if response['error'] == 'channel_not_found':
-                print(f"Error sending message: Channel '{channel_id}' not found or bot does not have permission.")
-            else:
-                print(f"Failed to send message to channel {channel_id}: {response['error']}")
+            print(f"Failed to send message to channel {channel_id}: {response['error']}")
 
     except SlackApiError as e:
         print(f"Slack API Error: {e.response['error']}")
