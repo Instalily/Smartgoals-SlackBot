@@ -1,0 +1,7 @@
+fastapi
+uvicorn
+slack_sdk
+openai==1.35.14
+python-dotenv
+functions_framework
+apscheduler
