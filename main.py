@@ -121,20 +121,30 @@ def send_slack_message(data):
         today_date = datetime.now().strftime('%Y-%m-%d')
         header_message = f"*Daily Update - {today_date}*\n"
         
-        submitted_users_message = "\n*Submitted Users:*"
-        not_submitted_users_message = "\n\n*Not Submitted Users:*"
+        submitted_users_message = "\n*Submitted Users:*\n"
+        not_submitted_users_message = "\n\n*Not Submitted Users:*\n"
 
         sorted_submitted_users = sorted(submitted_users.items(), key=lambda x: x[1])
 
+        submitted_users_message += "```"
+        submitted_users_message += "Name           | Timestamp\n"
+        submitted_users_message += "---------------|----------------\n"
         for user, timestamp in sorted_submitted_users:
-            submitted_users_message += f"\n{user} - {timestamp.strftime('%I:%M %p')}"
+            submitted_users_message += f"{user:<15} | {timestamp.strftime('%I:%M %p')}\n"
+        submitted_users_message += "```"
 
+        not_submitted_users_message += "```"
+        not_submitted_users_message += "Name\n"
+        not_submitted_users_message += "---------------\n"
         for user in not_submitted_users:
-            not_submitted_users_message += f"\n{user}"
+            not_submitted_users_message += f"{user}\n"
+        not_submitted_users_message += "```"
 
         summaries_message = "\n\n*Summaries:*\n"
+        summaries_message += "```"
         for item in data:
-            summaries_message += f"*{item['user']}*:\n{item['summary']}\n\n"
+            summaries_message += f"{item['user']}:\n{item['summary']}\n\n"
+        summaries_message += "```"
 
         slack_message = f"{header_message}\n{submitted_users_message}\n{not_submitted_users_message}\n{summaries_message}"
 
@@ -150,7 +160,7 @@ def send_slack_message(data):
         print(f"Slack API Error: {e.response['error']}")
     except Exception as e:
         print(f"Unexpected error: {e}")
-
+        
 @functions_framework.http
 def slack_smart_goals(request):
     try:
