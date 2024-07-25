@@ -1,12 +1,12 @@
 import os
 from datetime import datetime, timedelta
 import csv
+import re
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 from openai import OpenAI
 from dotenv import load_dotenv
 import functions_framework
-
 
 load_dotenv()
 
@@ -16,9 +16,12 @@ openai_api_key = os.getenv('OPENAI_API_KEY')
 openai_client = OpenAI(api_key=openai_api_key)
 slack_client = WebClient(token=slack_token)
 
-
-specific_users = ["Cristin Connerney", "Logan Ge", "Dhiraj Khanal", "Iris Cheng", "Mateo Godoy", "Hongyi Wu", "Prashanthi Ramachandran", "Morgann Thain", "Joshua Shou", "Geneva", 
-                  "Sujit Varadhan", "Laryn Qi", "Edward Kim", "Sriyans Rauniyar", "Zubin Chandra", "Doris Huang", "Alex Kim", "Mars Tan", "Aris Zhu", "Brigit Jacob", "Jack Rangaiah", "Roey Abehsera"]
+specific_users = [
+    "Cristin Connerney", "Logan Ge", "Dhiraj Khanal", "Iris Cheng", "Mateo Godoy", "Hongyi Wu", 
+    "Prashanthi Ramachandran", "Morgann Thain", "Joshua Shou", "Geneva", "Sujit Varadhan", 
+    "Laryn Qi", "Edward Kim", "Sriyans Rauniyar", "Zubin Chandra", "Doris Huang", "Alex Kim", 
+    "Mars Tan", "Aris Zhu", "Brigit Jacob", "Jack Rangaiah", "Roey Abehsera"
+] # To make sure it only checkes for messages sent by those posting Smartgoals
 
 def get_user_name(user_id):
     try:
@@ -27,7 +30,7 @@ def get_user_name(user_id):
     except SlackApiError as e:
         print(f"Error fetching user info: {e.response['error']}")
         return None
-    
+
 def extract_messages(channel_id):
     try:
         end_time = datetime.now()
@@ -46,29 +49,61 @@ def extract_messages(channel_id):
         print(f"Error fetching messages: {e.response['error']}")
         return []
 
+def extract_date_from_text(text):
+    # Define date patterns for various formats
+    date_patterns = [
+        r'\b(\d{4}-\d{2}-\d{2})\b',       # YYYY-MM-DD
+        r'\b(\d{2}/\d{2}/\d{4})\b',       # MM/DD/YYYY
+        r'\b(\d{2}-\d{2}-\d{4})\b'        # DD-MM-YYYY
+    ]
+    
+    # Extract date from the beginning of the text
+    for pattern in date_patterns:
+        match = re.search(pattern, text)
+        if match:
+            try:
+                return datetime.strptime(match.group(1), '%Y-%m-%d').date()
+            except ValueError:
+                try:
+                    return datetime.strptime(match.group(1), '%m/%d/%Y').date()
+                except ValueError:
+                    return datetime.strptime(match.group(1), '%d-%m-%Y').date()
+    return None
+
 def process_messages(messages):
+    today_date = datetime.now().date()
     processed_data = []
     global submitted_users, not_submitted_users
     submitted_users = {}
     not_submitted_users = set(specific_users)
     
+    categorized_messages = {}
+
     for msg in messages:
         user = msg.get('user')
         if user:
             username = get_user_name(user)
             if username and username in specific_users:
-                submitted_users[username] = datetime.fromtimestamp(float(msg['ts']))
-                not_submitted_users.discard(username)
                 timestamp = datetime.fromtimestamp(float(msg['ts']))
                 text = msg['text']
-                summary = generate_summary(text)
-                processed_data.append({
+                date_mentioned = extract_date_from_text(text) or today_date
+                
+                # Categorize messages by the mentioned date
+                if date_mentioned not in categorized_messages:
+                    categorized_messages[date_mentioned] = []
+                
+                categorized_messages[date_mentioned].append({
                     'user': username,
                     'timestamp': timestamp,
                     'text': text,
-                    'summary': summary
+                    'summary': generate_summary(text)
                 })
-    return processed_data
+                
+                if date_mentioned == today_date:
+                    submitted_users[username] = timestamp
+                    not_submitted_users.discard(username)
+    
+    return categorized_messages
 
 def generate_summary(text):
     try:
@@ -79,16 +114,12 @@ def generate_summary(text):
                 {"role": "user", "content": text}
             ]
         )
-        print(completion)  # Print the entire response to debug
         return completion.choices[0].message.content.strip()
     except Exception as e:
         print(f"Error generating summary: {e}")
         return "Error generating summary."
 
-
-
-
-def save_to_csv(data):
+def save_to_csv(categorized_data):
     csv_filename = '/tmp/slack_smart_goals.csv'
     try:
         with open(csv_filename, 'w', newline='', encoding='utf-8') as csvfile:
@@ -106,17 +137,18 @@ def save_to_csv(data):
             csvfile.write("\n")
 
             writer.writeheader()
-            for item in data:
-                writer.writerow({
-                    'name': item['user'],
-                    'date': item['timestamp'].strftime('%Y-%m-%d %H:%M:%S'),
-                    'summary': item['summary']
-                })
+            for date, messages in categorized_data.items():
+                for item in messages:
+                    writer.writerow({
+                        'name': item['user'],
+                        'date': item['timestamp'].strftime('%Y-%m-%d %H:%M:%S'),
+                        'summary': item['summary']
+                    })
         print(f"Data saved to {csv_filename}")
     except IOError as e:
         print(f"Error saving to CSV: {e}")
 
-def send_slack_message(data):
+def send_slack_message(categorized_data):
     try:
         today_date = datetime.now().strftime('%Y-%m-%d')
         header_message = f"*Daily Update - {today_date}*\n"
@@ -142,8 +174,10 @@ def send_slack_message(data):
 
         summaries_message = "\n\n*Summaries:*\n"
         summaries_message += "```"
-        for item in data:
-            summaries_message += f"{item['user']}:\n{item['summary']}\n\n"
+        for date, messages in categorized_data.items():
+            summaries_message += f"\n*Date: {date}*\n"
+            for item in messages:
+                summaries_message += f"{item['user']}:\n{item['summary']}\n\n"
         summaries_message += "```"
 
         slack_message = f"{header_message}\n{submitted_users_message}\n{not_submitted_users_message}\n{summaries_message}"
@@ -160,27 +194,25 @@ def send_slack_message(data):
         print(f"Slack API Error: {e.response['error']}")
     except Exception as e:
         print(f"Unexpected error: {e}")
-        
+
 @functions_framework.http
 def slack_smart_goals(request):
     try:
         channel_id = 'C057AFRT9SN'
         messages = extract_messages(channel_id)
         if messages:
-            processed_data = process_messages(messages)
-            if processed_data:
-                save_to_csv(processed_data)
-                send_slack_message(processed_data)
+            categorized_data = process_messages(messages)
+            if categorized_data:
+                save_to_csv(categorized_data)
+                send_slack_message(categorized_data)
             else:
-                print("No messages sent.")
+                print("No messages processed.")
         else:
             print("No messages fetched from Slack.")
         return 'OK'
     except Exception as e:
+        print(f"Exception occurred: {e}")
         return str(e)
-
-
-
 
 if __name__ == "__main__":
     slack_smart_goals(None)
