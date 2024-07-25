@@ -21,7 +21,7 @@ specific_users = [
     "Prashanthi Ramachandran", "Morgann Thain", "Joshua Shou", "Geneva", "Sujit Varadhan", 
     "Laryn Qi", "Edward Kim", "Sriyans Rauniyar", "Zubin Chandra", "Doris Huang", "Alex Kim", 
     "Mars Tan", "Aris Zhu", "Brigit Jacob", "Jack Rangaiah", "Roey Abehsera"
-] # To make sure it only checkes for messages sent by those posting Smartgoals
+] # To make sure it only checks for messages sent by those posting Smartgoals
 
 def get_user_name(user_id):
     try:
@@ -49,26 +49,27 @@ def extract_messages(channel_id):
         print(f"Error fetching messages: {e.response['error']}")
         return []
 
-def extract_date_from_text(text):
-    # Define date patterns for various formats
+def extract_dates_from_text(text):
     date_patterns = [
         r'\b(\d{4}-\d{2}-\d{2})\b',       # YYYY-MM-DD
         r'\b(\d{2}/\d{2}/\d{4})\b',       # MM/DD/YYYY
         r'\b(\d{2}-\d{2}-\d{4})\b'        # DD-MM-YYYY
     ]
     
-    # Extract date from the beginning of the text
+    dates = []
+    
     for pattern in date_patterns:
-        match = re.search(pattern, text)
-        if match:
+        matches = re.findall(pattern, text)
+        for match in matches:
             try:
-                return datetime.strptime(match.group(1), '%Y-%m-%d').date()
+                dates.append(datetime.strptime(match, '%Y-%m-%d').date())
             except ValueError:
                 try:
-                    return datetime.strptime(match.group(1), '%m/%d/%Y').date()
+                    dates.append(datetime.strptime(match, '%m/%d/%Y').date())
                 except ValueError:
-                    return datetime.strptime(match.group(1), '%d-%m-%Y').date()
-    return None
+                    dates.append(datetime.strptime(match, '%d-%m-%Y').date())
+    
+    return dates if dates else None
 
 def process_messages(messages):
     today_date = datetime.now().date()
@@ -86,29 +87,33 @@ def process_messages(messages):
             if username and username in specific_users:
                 timestamp = datetime.fromtimestamp(float(msg['ts']))
                 text = msg['text']
-                date_mentioned = extract_date_from_text(text) or today_date
                 
-                # Categorize messages by the mentioned date
-                if date_mentioned not in categorized_messages:
-                    categorized_messages[date_mentioned] = []
+                # Extract all dates from the message text
+                dates_mentioned = extract_dates_from_text(text) or [today_date]
                 
-                categorized_messages[date_mentioned].append({
-                    'user': username,
-                    'timestamp': timestamp,
-                    'text': text,
-                    'summary': generate_summary(text)
-                })
-                
-                if date_mentioned == today_date:
-                    submitted_users[username] = timestamp
-                    not_submitted_users.discard(username)
+                for date_mentioned in dates_mentioned:
+                    # Initialize the date category if not already present
+                    if date_mentioned not in categorized_messages:
+                        categorized_messages[date_mentioned] = []
+                    
+                    categorized_messages[date_mentioned].append({
+                        'user': username,
+                        'timestamp': timestamp,
+                        'text': text,
+                        'summary': generate_summary(text)
+                    })
+                    
+                    # Check if this is for the current day's SMART goals
+                    if date_mentioned == today_date:
+                        submitted_users[username] = timestamp
+                        not_submitted_users.discard(username)
     
     return categorized_messages
 
 def generate_summary(text):
     try:
         completion = openai_client.chat.completions.create(
-            model="gpt-4o",
+            model="gpt-4",
             messages=[
                 {"role": "system", "content": "You are a helpful assistant, summarizing today's work completed by each person for their boss in a very short and concise way."},
                 {"role": "user", "content": text}
