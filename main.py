@@ -158,11 +158,9 @@ def send_slack_message(categorized_data):
         today_date = datetime.now().strftime('%Y-%m-%d')
         header_message = f"*Daily Update - {today_date}*\n"
         
+        # Format Submitted Users
         submitted_users_message = "\n*Submitted Users:*\n"
-        not_submitted_users_message = "\n\n*Not Submitted Users:*\n"
-
         sorted_submitted_users = sorted(submitted_users.items(), key=lambda x: x[1])
-
         submitted_users_message += "```"
         submitted_users_message += "Name           | Timestamp\n"
         submitted_users_message += "---------------|----------------\n"
@@ -170,6 +168,8 @@ def send_slack_message(categorized_data):
             submitted_users_message += f"{user:<15} | {timestamp.strftime('%I:%M %p')}\n"
         submitted_users_message += "```"
 
+        # Format Not Submitted Users
+        not_submitted_users_message = "\n*Not Submitted Users:*\n"
         not_submitted_users_message += "```"
         not_submitted_users_message += "Name\n"
         not_submitted_users_message += "---------------\n"
@@ -177,23 +177,28 @@ def send_slack_message(categorized_data):
             not_submitted_users_message += f"{user}\n"
         not_submitted_users_message += "```"
 
-        summaries_message = "\n\n*Summaries:*\n"
-        summaries_message += "```"
+        # Format Summaries
+        summaries_message = "\n*Summaries:*\n"
         for date, messages in categorized_data.items():
             summaries_message += f"\n*Date: {date}*\n"
             for item in messages:
-                summaries_message += f"{item['user']}:\n{item['summary']}\n\n"
-        summaries_message += "```"
+                summaries_message += f"• {item['user']}:\n{item['summary']}\n\n"
+        
+        # Split summaries message if it exceeds Slack's limit
+        def split_message(message, max_length=4000):
+            return [message[i:i+max_length] for i in range(0, len(message), max_length)]
 
-        slack_message = f"{header_message}\n{submitted_users_message}\n{not_submitted_users_message}\n{summaries_message}"
-
+        # Prepare all chunks for Slack messages
+        chunks = split_message(header_message + submitted_users_message + not_submitted_users_message + summaries_message)
+        
         channel_id = "C07DT2TQDDJ"  # Replace with your destination channel ID C07CBL4DE30
-        response = slack_client.chat_postMessage(channel=channel_id, text=slack_message)
-
-        if response["ok"]:
-            print(f"Data sent to channel {channel_id} on Slack.")
-        else:
-            print(f"Failed to send message to channel {channel_id}: {response['error']}")
+        
+        for chunk in chunks:
+            response = slack_client.chat_postMessage(channel=channel_id, text=chunk)
+            if response["ok"]:
+                print(f"Data sent to channel {channel_id} on Slack.")
+            else:
+                print(f"Failed to send message to channel {channel_id}: {response['error']}")
 
     except SlackApiError as e:
         print(f"Slack API Error: {e.response['error']}")
