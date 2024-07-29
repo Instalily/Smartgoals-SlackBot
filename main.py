@@ -7,6 +7,7 @@ from slack_sdk.errors import SlackApiError
 from openai import OpenAI
 from dotenv import load_dotenv
 import functions_framework
+import pytz
 
 load_dotenv()
 
@@ -33,7 +34,8 @@ def get_user_name(user_id):
 
 def extract_messages(channel_id):
     try:
-        end_time = datetime.now()
+        est = pytz.timezone('US/Eastern')
+        end_time = datetime.now(tz=est)
         start_time = end_time - timedelta(hours=24)
         
         oldest_time = int(start_time.timestamp())
@@ -72,7 +74,8 @@ def extract_dates_from_text(text):
     return dates if dates else None
 
 def process_messages(messages):
-    today_date = datetime.now().date()
+    est = pytz.timezone('US/Eastern')
+    today_date = datetime.now(tz=est).date()
     processed_data = []
     global submitted_users, not_submitted_users
     submitted_users = {}
@@ -85,7 +88,7 @@ def process_messages(messages):
         if user:
             username = get_user_name(user)
             if username and username in specific_users:
-                timestamp = datetime.fromtimestamp(float(msg['ts']))
+                timestamp = datetime.fromtimestamp(float(msg['ts']), tz=est)
                 text = msg['text']
                 
                 # Extract all dates from the message text
@@ -155,7 +158,8 @@ def save_to_csv(categorized_data):
 
 def send_slack_message(categorized_data):
     try:
-        today_date = datetime.now().strftime('%Y-%m-%d')
+        est = pytz.timezone('US/Eastern')
+        today_date = datetime.now(tz=est).strftime('%Y-%m-%d')
         header_message = f"*Daily Update - {today_date}*\n"
         
         # Format Submitted Users
