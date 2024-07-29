@@ -181,17 +181,12 @@ def send_slack_message(categorized_data):
             not_submitted_users_message += f"{user}\n"
         not_submitted_users_message += "```"
 
-        summaries_message = "\n*Summaries:*\n"
-        for date, messages in categorized_data.items():
-            for item in messages:
-                summaries_message += f"• {item['user']}:\n{item['summary']}\n\n"
         
-        # Split summaries message if it exceeds Slack's limit
         def split_message(message, max_length=4000):
             return [message[i:i+max_length] for i in range(0, len(message), max_length)]
 
         # Prepare all chunks for Slack messages
-        chunks = split_message(header_message + submitted_users_message + not_submitted_users_message + summaries_message)
+        chunks = split_message(header_message + submitted_users_message + not_submitted_users_message)
         
         channel_id = "C07CBL4DE30"  # Replace with your destination channel ID, C07CBL4DE30 = Actual Channel, C07DT2TQDDJ = Test Channel
         
