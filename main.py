@@ -181,7 +181,6 @@ def send_slack_message(categorized_data):
             not_submitted_users_message += f"{user}\n"
         not_submitted_users_message += "```"
 
-        # Format Summaries without Dates
         summaries_message = "\n*Summaries:*\n"
         for date, messages in categorized_data.items():
             for item in messages:
@@ -194,7 +193,7 @@ def send_slack_message(categorized_data):
         # Prepare all chunks for Slack messages
         chunks = split_message(header_message + submitted_users_message + not_submitted_users_message + summaries_message)
         
-        channel_id = "C07DT2TQDDJ"  # Replace with your destination channel ID C07CBL4DE30
+        channel_id = "C07CBL4DE30"  # Replace with your destination channel ID, C07CBL4DE30 = Actual Channel, C07DT2TQDDJ = Test Channel
         
         for chunk in chunks:
             response = slack_client.chat_postMessage(channel=channel_id, text=chunk)
