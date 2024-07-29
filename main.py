@@ -118,8 +118,8 @@ def generate_summary(text):
         completion = openai_client.chat.completions.create(
             model="gpt-4",
             messages=[
-                {"role": "system", "content": "You are a helpful assistant, summarizing today's work completed by each person for their boss in a very short and concise way."},
-                {"role": "user", "content": text}
+                 {"role": "system", "content": "You are a helpful assistant tasked with summarizing daily work accomplished by employees. Format the summary into a table with only the accomplishments listed. The employee’s name and date should not be mentioned in the table itself but will be provided separately."},
+                {"role": "user", "content": f"Summarize the following message and format it into a table where the employee’s name and date are only listed once at the top of the document:\n\n{text}\n\nFormat the output as:\n\n| Summary |\n|-------------------------------------------------|\n| Accomplishment 1 |\n| Accomplishment 2 |\n| Accomplishment 3 |"}
             ]
         )
         return completion.choices[0].message.content.strip()
@@ -181,10 +181,9 @@ def send_slack_message(categorized_data):
             not_submitted_users_message += f"{user}\n"
         not_submitted_users_message += "```"
 
-        # Format Summaries
+        # Format Summaries without Dates
         summaries_message = "\n*Summaries:*\n"
         for date, messages in categorized_data.items():
-            summaries_message += f"\n*Date: {date}*\n"
             for item in messages:
                 summaries_message += f"• {item['user']}:\n{item['summary']}\n\n"
         
