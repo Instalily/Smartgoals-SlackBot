@@ -35,9 +35,12 @@ def get_user_name(user_id):
 def extract_messages(channel_id):
     try:
         est = pytz.timezone('US/Eastern')
-        end_time = datetime.now(tz=est)
-        start_time = end_time - timedelta(hours=24)
+        now = datetime.now(tz=est)
         
+        # Set the start time for 3 PM of the previous day
+        start_time = now.replace(hour=15, minute=0, second=0, microsecond=0) - timedelta(days=1)
+        end_time = now  # End time is the current time it runs so cron jobs will always collect from 3pm
+
         oldest_time = int(start_time.timestamp())
         latest_time = int(end_time.timestamp())
 
@@ -188,7 +191,7 @@ def send_slack_message(categorized_data):
         # Prepare all chunks for Slack messages
         chunks = split_message(header_message + submitted_users_message + not_submitted_users_message)
         
-        channel_id = "C07CBL4DE30"  # Replace with your destination channel ID, C07CBL4DE30 = Actual Channel, C07DT2TQDDJ = Test Channel
+        channel_id = "C07DT2TQDDJ"  # Replace with your destination channel ID, C07CBL4DE30 = Actual Channel, C07DT2TQDDJ = Test Channel
         
         for chunk in chunks:
             response = slack_client.chat_postMessage(channel=channel_id, text=chunk)
