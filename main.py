@@ -191,7 +191,7 @@ def send_slack_message(categorized_data):
         # Prepare all chunks for Slack messages
         chunks = split_message(header_message + submitted_users_message + not_submitted_users_message)
         
-        channel_id = "C07DT2TQDDJ"  # Replace with your destination channel ID, C07CBL4DE30 = Actual Channel, C07DT2TQDDJ = Test Channel
+        channel_id = "C07CBL4DE30"  # Replace with your destination channel ID, C07CBL4DE30 = Actual Channel, C07DT2TQDDJ = Test Channel
         
         for chunk in chunks:
             response = slack_client.chat_postMessage(channel=channel_id, text=chunk)
