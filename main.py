@@ -5,9 +5,12 @@ from slack_sdk.errors import SlackApiError
 from dotenv import load_dotenv
 import functions_framework
 import pytz
+from fastapi import FastAPI
 
+app = FastAPI()
 load_dotenv()
 
+CHANNEL_ID = os.getenv('SLACK_CHANNEL_ID')
 slack_token = os.getenv('SLACK_BOT_TOKEN')
 slack_client = WebClient(token=slack_token)
 
@@ -101,34 +104,37 @@ def send_slack_message():
         # Prepare all chunks for Slack messages
         chunks = split_message(header_message + submitted_users_message + not_submitted_users_message)
         
-        channel_id = "C07DT2TQDDJ"  # Replace with your destination channel ID, C07CBL4DE30 = Actual Channel, C07DT2TQDDJ = Test Channel
+        # channel_id = "C07CBL4DE30"  # Replace with your destination channel ID, C07CBL4DE30 = Actual Channel, C07DT2TQDDJ = Test Channel
         
         for chunk in chunks:
-            response = slack_client.chat_postMessage(channel=channel_id, text=chunk)
+            response = slack_client.chat_postMessage(channel=CHANNEL_ID, text=chunk)
             if response["ok"]:
-                print(f"Data sent to channel {channel_id} on Slack.")
+                print(f"Data sent to channel {CHANNEL_ID} on Slack.")
             else:
-                print(f"Failed to send message to channel {channel_id}: {response['error']}")
+                print(f"Failed to send message to channel {CHANNEL_ID}: {response['error']}")
 
     except SlackApiError as e:
         print(f"Slack API Error: {e.response['error']}")
     except Exception as e:
         print(f"Unexpected error: {e}")
 
-@functions_framework.http
-def slack_smart_goals(request):
-    try:
-        channel_id = 'C057AFRT9SN'
-        messages = extract_messages(channel_id)
-        if messages:
-            process_messages(messages)
-            send_slack_message()
-        else:
-            print("No messages fetched from Slack.")
-        return 'OK'
-    except Exception as e:
-        print(f"Exception occurred: {e}")
-        return str(e)
+def process_slack_smart_goals():
+    channel_id = 'C057AFRT9SN'
+    messages = extract_messages(channel_id)
+    if messages:
+        process_messages(messages)
+        send_slack_message()
+    else:
+        print("No messages fetched from Slack.")
 
-if __name__ == "__main__":
-    slack_smart_goals(None)
+@app.get("/")
+async def hello():
+    return ("THe app is live and running")
+
+@app.get("/run-slack-smart-goals")
+async def run_slack_smart_goals():
+    try:
+        process_slack_smart_goals()
+        return {"status": "success", "message": "Slack Smart Goals were procesed successfully."}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
