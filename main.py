@@ -10,8 +10,13 @@ from fastapi import FastAPI
 app = FastAPI()
 load_dotenv()
 
-CHANNEL_ID = os.getenv('SLACK_CHANNEL_ID')
-slack_token = os.getenv('SLACK_BOT_TOKEN')
+CHANNEL_ID = os.getenv('SLACK_CHANNEL_ID', None)
+if not CHANNEL_ID:
+    raise ValueError("Please set the SLACK_CHANNEL_ID environment variable.")
+slack_token = os.getenv('SLACK_BOT_TOKEN', None)
+if not slack_token:
+    raise ValueError("Please set the SLACK_BOT_TOKEN environment variable.")
+
 slack_client = WebClient(token=slack_token)
 
 specific_users = [
@@ -34,9 +39,8 @@ def extract_messages(channel_id):
         est = pytz.timezone('US/Eastern')
         now = datetime.now(tz=est)
         
-        # Set the start time for 3 PM of the previous day
-        start_time = now.replace(hour=15, minute=0, second=0, microsecond=0) 
-        end_time = now  # End time is the current time it runs so cron jobs will always collect from 3pm
+        start_time = now - timedelta(days=1)
+        end_time = now  
 
         oldest_time = int(start_time.timestamp())
         latest_time = int(end_time.timestamp())
@@ -138,3 +142,5 @@ async def run_slack_smart_goals():
         return {"status": "success", "message": "Slack Smart Goals were procesed successfully."}
     except Exception as e:
         return {"status": "error", "message": str(e)}
+    
+    
