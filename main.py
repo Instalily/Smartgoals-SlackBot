@@ -10,8 +10,13 @@ from fastapi import FastAPI
 app = FastAPI()
 load_dotenv()
 
-CHANNEL_ID = os.getenv('SLACK_CHANNEL_ID')
-slack_token = os.getenv('SLACK_BOT_TOKEN')
+CHANNEL_ID = os.getenv('SLACK_CHANNEL_ID', None)
+if not CHANNEL_ID:
+    raise ValueError("Please set the SLACK_CHANNEL_ID environment variable.")
+slack_token = os.getenv('SLACK_BOT_TOKEN', None)
+if not slack_token:
+    raise ValueError("Please set the SLACK_BOT_TOKEN environment variable.")
+
 slack_client = WebClient(token=slack_token)
 
 specific_users = [
@@ -137,3 +142,5 @@ async def run_slack_smart_goals():
         return {"status": "success", "message": "Slack Smart Goals were procesed successfully."}
     except Exception as e:
         return {"status": "error", "message": str(e)}
+    
+    
