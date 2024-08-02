@@ -34,9 +34,8 @@ def extract_messages(channel_id):
         est = pytz.timezone('US/Eastern')
         now = datetime.now(tz=est)
         
-        # Set the start time for 3 PM of the previous day
-        start_time = now.replace(hour=15, minute=0, second=0, microsecond=0) 
-        end_time = now  # End time is the current time it runs so cron jobs will always collect from 3pm
+        start_time = now - timedelta(days=1)
+        end_time = now  
 
         oldest_time = int(start_time.timestamp())
         latest_time = int(end_time.timestamp())
